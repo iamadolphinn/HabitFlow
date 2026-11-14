@@ -1,0 +1,28 @@
+<div class="card habit-card shadow-sm @(Done ? "done" : "") @(Scheduled ? "" : "rest")" style="--habit-color:@Habit.Color" data-testid="habit-card">
+    <div class="card-body d-flex align-items-center gap-3">
+        <div class="habit-icon">@Habit.Emoji</div>
+        <div class="flex-grow-1 min-w-0">
+            <div class="fw-semibold text-truncate">@Habit.Name</div>
+            <div class="small text-muted">
+                @if (Streak > 0) { <span title="Current streak">🔥 @Streak day@(Streak == 1 ? "" : "s")</span> }
+                else { <span>No streak yet</span> }
+                @if (!string.IsNullOrWhiteSpace(Habit.Description)) { <span> · @Habit.Description</span> }
+            </div>
+        </div>
+        <button type="button" class="btn check-btn @(Done ? "checked" : "")" data-testid="toggle"
+                aria-pressed="@(Done ? "true" : "false")" aria-label="@(Done ? "Undo" : "Complete") @Habit.Name"
+                disabled="@Disabled"
+                @onclick="() => OnToggle.InvokeAsync()">
+            @(Done ? "✓" : "")
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Habit Habit { get; set; } = default!;
+    [Parameter] public bool Done { get; set; }
+    [Parameter] public bool Scheduled { get; set; } = true;
+    [Parameter] public int Streak { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnToggle { get; set; }
+}

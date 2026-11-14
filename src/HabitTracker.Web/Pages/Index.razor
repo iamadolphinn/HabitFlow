@@ -1,0 +1,32 @@
+@page "/"
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>HabitFlow</PageTitle>
+
+<div class="text-center py-5">
+    <div class="display-1">🔥</div>
+    <h1 class="display-5 fw-bold mt-2">Build habits that stick</h1>
+    <p class="lead text-muted mx-auto" style="max-width:36rem">
+        Track daily habits, grow your streaks, see your progress on a calendar heatmap
+        and unlock badges. Works on your phone and your laptop, and stays in sync.
+    </p>
+    <div class="d-flex justify-content-center gap-2 mt-4">
+        <a class="btn btn-primary btn-lg" href="register">Get started</a>
+        <a class="btn btn-outline-secondary btn-lg" href="login">Log in</a>
+    </div>
+
+    <div class="row g-3 mt-5 text-start">
+        <div class="col-12 col-md-4"><div class="card h-100 shadow-sm border-0"><div class="card-body"><h5>✅ One-tap check-ins</h5><p class="mb-0 text-muted">See today's habits and complete them with a single tap.</p></div></div></div>
+        <div class="col-12 col-md-4"><div class="card h-100 shadow-sm border-0"><div class="card-body"><h5>📈 Streaks &amp; stats</h5><p class="mb-0 text-muted">Current and longest streaks, 30-day completion and a 12-week heatmap.</p></div></div></div>
+        <div class="col-12 col-md-4"><div class="card h-100 shadow-sm border-0"><div class="card-body"><h5>🔄 Live sync</h5><p class="mb-0 text-muted">Check in on one device and watch the other update instantly.</p></div></div></div>
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        if (user.Identity?.IsAuthenticated == true) Nav.NavigateTo("today", replace: true);
+    }
+}

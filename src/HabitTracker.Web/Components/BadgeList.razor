@@ -1,0 +1,13 @@
+<div class="d-flex flex-wrap gap-2">
+    @foreach (var b in Badges)
+    {
+        <div class="badge-tile @(b.Unlocked ? "unlocked" : "locked")" title="@b.Description" data-testid="badge">
+            <div class="fs-3">@b.Emoji</div>
+            <div class="small fw-semibold">@b.Name</div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<Badge> Badges { get; set; } = Array.Empty<Badge>();
+}

@@ -1,0 +1,69 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject HabitState State
+
+<nav class="navbar navbar-expand-md navbar-dark app-nav">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">🔥 HabitFlow</a>
+        <button class="navbar-toggler" type="button" @onclick="() => _open = !_open" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-collapse @(_open ? "" : "collapse")">
+            <ul class="navbar-nav me-auto">
+                <AuthorizeView>
+                    <Authorized>
+                        <li class="nav-item"><NavLink class="nav-link" href="today">Today</NavLink></li>
+                        <li class="nav-item"><NavLink class="nav-link" href="habits">Habits</NavLink></li>
+                        <li class="nav-item"><NavLink class="nav-link" href="stats">Stats</NavLink></li>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="Admin">
+                    <li class="nav-item"><NavLink class="nav-link" href="admin/users">Users</NavLink></li>
+                </AuthorizeView>
+            </ul>
+            <AuthorizeView>
+                <Authorized>
+                    @if (State.IsLoaded && State.Scheduled > 0)
+                    {
+                        <span class="badge text-bg-light me-3" data-testid="nav-progress">Today @State.Done/@State.Scheduled</span>
+                    }
+                    <form method="post" action="/auth/logout" class="d-flex align-items-center gap-2">
+                        <span class="text-white-50 small">@context.User.Identity?.Name</span>
+                        <button class="btn btn-outline-light btn-sm" type="submit">Log out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="btn btn-outline-light btn-sm me-2" href="login">Log in</a>
+                    <a class="btn btn-light btn-sm" href="register">Sign up</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</nav>
+
+<main class="container py-4">
+    <ErrorBoundary @ref="_boundary">
+        <ChildContent>@Body</ChildContent>
+        <ErrorContent Context="ex">
+            <div class="alert alert-danger">
+                <strong>Oops.</strong> Something unexpected happened. Your data is safe.
+                <button class="btn btn-sm btn-outline-danger ms-2" @onclick="() => _boundary?.Recover()">Try again</button>
+            </div>
+        </ErrorContent>
+    </ErrorBoundary>
+</main>
+
+@code {
+    private bool _open;
+    private ErrorBoundary? _boundary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.Changed += OnChanged;
+        try { await State.EnsureLoadedAsync(); } catch (Exception) { /* header chip is optional */ }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

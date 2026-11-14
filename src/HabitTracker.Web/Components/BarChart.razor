@@ -1,0 +1,18 @@
+<div class="bar-chart">
+    @foreach (var item in Items)
+    {
+        <div class="bar-row">
+            <div class="bar-label" title="@item.Label">@item.Label</div>
+            <div class="bar-track">
+                <div class="bar-fill" style="width:@(Math.Clamp(item.Value, 0, 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+            </div>
+            <div class="bar-value">@item.Value.ToString("0.#")%</div>
+        </div>
+    }
+</div>
+
+@code {
+    public record ChartItem(string Label, double Value);
+
+    [Parameter, EditorRequired] public IEnumerable<ChartItem> Items { get; set; } = Array.Empty<ChartItem>();
+}

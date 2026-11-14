@@ -1,0 +1,24 @@
+<div class="heatmap" style="--heat-color:@Color" role="img" aria-label="Activity of the last weeks">
+    @for (var i = 0; i < _offset; i++)
+    {
+        <span class="heat-cell empty"></span>
+    }
+    @foreach (var c in Cells)
+    {
+        <button type="button" class="heat-cell level-@c.Level" title="@c.Tooltip" data-testid="heat-cell"
+                disabled="@(!Clickable)" @onclick="() => OnCellClick.InvokeAsync(c.Date)"></button>
+    }
+</div>
+
+@code {
+    public record HeatCell(DateOnly Date, int Level, string Tooltip);
+
+    /// <summary>Consecutive days, oldest first. Level 0 = nothing … 4 = full.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<HeatCell> Cells { get; set; } = Array.Empty<HeatCell>();
+    [Parameter] public string Color { get; set; } = "#4f46e5";
+    [Parameter] public bool Clickable { get; set; }
+    [Parameter] public EventCallback<DateOnly> OnCellClick { get; set; }
+
+    // pad so that the first column starts on a Monday
+    private int _offset => Cells.Count == 0 ? 0 : ((int)Cells[0].Date.DayOfWeek + 6) % 7;
+}

@@ -1,0 +1,90 @@
+@page "/today"
+@attribute [Authorize]
+@implements IDisposable
+@inject HabitState State
+
+<PageTitle>Today</PageTitle>
+
+<div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+    <div>
+        <h2 class="mb-0">Today</h2>
+        <div class="text-muted">@DateTime.Now.ToString("dddd, d MMMM")</div>
+    </div>
+    <a class="btn btn-primary" href="habits/new">+ New habit</a>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger py-2">@_error</div>
+}
+
+@if (!State.IsLoaded)
+{
+    <div class="text-center py-5"><div class="spinner-border" role="status"></div></div>
+}
+else if (State.Today.Count == 0)
+{
+    <div class="card text-center p-5">
+        <div class="display-4">🌱</div>
+        <h4 class="mt-2">No habits yet</h4>
+        <p class="text-muted">Create your first habit to start a streak.</p>
+        <div><a class="btn btn-primary" href="habits/new">Create a habit</a></div>
+    </div>
+}
+else
+{
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between mb-1">
+                <strong>@(State.Percent == 100 && State.Scheduled > 0 ? "All done! 🎉" : "Today's progress")</strong>
+                <span data-testid="progress-text">@State.Done / @State.Scheduled</span>
+            </div>
+            <div class="progress" style="height:10px" role="progressbar" aria-valuenow="@State.Percent" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar" style="width:@State.Percent%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="vstack gap-2">
+        @foreach (var h in State.Today.Where(x => x.Scheduled))
+        {
+            <HabitCard Habit="h.Habit" Done="h.DoneToday" Scheduled="true" Streak="h.Streak.Current"
+                       OnToggle="() => Toggle(h.Habit.Id)" />
+        }
+    </div>
+
+    @if (State.Today.Any(x => !x.Scheduled))
+    {
+        <h6 class="text-muted mt-4">Rest day for</h6>
+        <div class="vstack gap-2">
+            @foreach (var h in State.Today.Where(x => !x.Scheduled))
+            {
+                <HabitCard Habit="h.Habit" Done="h.DoneToday" Scheduled="false" Streak="h.Streak.Current"
+                           OnToggle="() => Toggle(h.Habit.Id)" />
+            }
+        </div>
+    }
+}
+
+@code {
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.Changed += OnChanged;
+        try { await State.EnsureLoadedAsync(); }
+        catch (Exception) { _error = "Could not load your habits. Please refresh the page."; }
+    }
+
+    private async Task Toggle(int habitId)
+    {
+        _error = null;
+        try { await State.ToggleAsync(habitId); }
+        catch (DomainException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Could not save your check-in. Please try again."; }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

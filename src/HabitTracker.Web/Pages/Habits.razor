@@ -1,0 +1,96 @@
+@page "/habits"
+@attribute [Authorize]
+@inject IHabitService HabitSvc
+@inject CurrentUser User
+
+<PageTitle>Habits</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">My habits</h2>
+    <a class="btn btn-primary" href="habits/new">+ New habit</a>
+</div>
+
+@if (_message is not null)
+{
+    <div class="alert alert-@(_isError ? "danger" : "success") py-2">@_message</div>
+}
+
+@if (_habits is null)
+{
+    <div class="text-center py-5"><div class="spinner-border" role="status"></div></div>
+}
+else if (_habits.Count == 0)
+{
+    <div class="alert alert-info">You haven't created any habits yet.</div>
+}
+else
+{
+    <div class="vstack gap-2">
+        @foreach (var h in _habits)
+        {
+            <div class="card shadow-sm @(h.IsArchived ? "opacity-50" : "")" style="--habit-color:@h.Color">
+                <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+                    <div class="habit-icon">@h.Emoji</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">@h.Name @if (h.IsArchived) { <span class="badge text-bg-secondary">Archived</span> }</div>
+                        <div class="small text-muted">@Describe(h.ScheduledDays)</div>
+                    </div>
+                    <div class="text-nowrap">
+                        <a class="btn btn-sm btn-outline-secondary" href="habits/@h.Id/stats">Stats</a>
+                        <a class="btn btn-sm btn-outline-primary" href="habits/@h.Id">Edit</a>
+                        <button class="btn btn-sm btn-outline-warning" @onclick="() => Archive(h)">@(h.IsArchived ? "Restore" : "Archive")</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(h)">Delete</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Habit>? _habits;
+    private string? _message;
+    private bool _isError;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        var user = await User.GetAsync();
+        _habits = (await HabitSvc.GetAllAsync(user.Id)).OrderBy(h => h.IsArchived).ThenBy(h => h.CreatedAt).ToList();
+    }
+
+    private Task Archive(Habit h) => Run(async uid =>
+    {
+        await HabitSvc.SetArchivedAsync(h.Id, uid, !h.IsArchived);
+        return h.IsArchived ? "Habit restored." : "Habit archived.";
+    });
+
+    private Task Delete(Habit h) => Run(async uid =>
+    {
+        await HabitSvc.DeleteAsync(h.Id, uid);
+        return "Habit deleted.";
+    });
+
+    private async Task Run(Func<string, Task<string>> action)
+    {
+        try
+        {
+            var user = await User.GetAsync();
+            _message = await action(user.Id);
+            _isError = false;
+            await Load();
+        }
+        catch (DomainException ex) { _message = ex.Message; _isError = true; }
+        catch (Exception) { _message = "Something went wrong. Please try again."; _isError = true; }
+    }
+
+    private static string Describe(Weekdays d) => d switch
+    {
+        Weekdays.Everyday => "Every day",
+        Weekdays.Workdays => "Weekdays",
+        _ => string.Join(", ", Enum.GetValues<Weekdays>()
+            .Where(x => x is Weekdays.Mon or Weekdays.Tue or Weekdays.Wed or Weekdays.Thu or Weekdays.Fri or Weekdays.Sat or Weekdays.Sun)
+            .Where(x => (d & x) != 0))
+    };
+}

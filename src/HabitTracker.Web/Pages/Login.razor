@@ -1,0 +1,40 @@
+@page "/login"
+
+<PageTitle>Log in</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h3 class="mb-3">Log in</h3>
+                @if (Error is not null)
+                {
+                    <div class="alert alert-danger py-2">Invalid email or password.</div>
+                }
+                <form method="post" action="/auth/login">
+                    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                    <div class="mb-3">
+                        <label class="form-label" for="email">Email</label>
+                        <input id="email" name="email" type="email" class="form-control" required autocomplete="username" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="password">Password</label>
+                        <input id="password" name="password" type="password" class="form-control" required autocomplete="current-password" />
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Log in</button>
+                </form>
+                <p class="small text-muted mt-3 mb-0">No account? <a href="register">Sign up</a></p>
+                <hr />
+                <p class="small text-muted mb-0">
+                    Demo: demo@habit.local / Demo123!<br />
+                    Admin: admin@habit.local / Admin123!
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+}

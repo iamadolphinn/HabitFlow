@@ -1,0 +1,29 @@
+<div class="weekday-picker" role="group" aria-label="Days of the week">
+    <div class="d-flex flex-wrap gap-2 mb-2">
+        @foreach (var (day, label) in _days)
+        {
+            var selected = (Value & day) != 0;
+            <button type="button" data-testid="day" aria-pressed="@(selected ? "true" : "false")"
+                    class="btn btn-sm day-btn @(selected ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="() => Toggle(day)">@label</button>
+        }
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => Set(Weekdays.Everyday)">Every day</button>
+        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => Set(Weekdays.Workdays)">Weekdays</button>
+    </div>
+</div>
+
+@code {
+    private static readonly (Weekdays Day, string Label)[] _days =
+    {
+        (Weekdays.Mon, "Mon"), (Weekdays.Tue, "Tue"), (Weekdays.Wed, "Wed"), (Weekdays.Thu, "Thu"),
+        (Weekdays.Fri, "Fri"), (Weekdays.Sat, "Sat"), (Weekdays.Sun, "Sun")
+    };
+
+    [Parameter] public Weekdays Value { get; set; }
+    [Parameter] public EventCallback<Weekdays> ValueChanged { get; set; }
+
+    private Task Toggle(Weekdays day) => ValueChanged.InvokeAsync(Value ^ day);
+    private Task Set(Weekdays value) => ValueChanged.InvokeAsync(value);
+}

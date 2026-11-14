@@ -1,0 +1,104 @@
+@page "/habits/new"
+@page "/habits/{Id:int}"
+@attribute [Authorize]
+@inject IHabitService Habits
+@inject CurrentUser User
+@inject NavigationManager Nav
+
+<PageTitle>@(Id is null ? "New habit" : "Edit habit")</PageTitle>
+
+<h2>@(Id is null ? "New habit" : "Edit habit")</h2>
+
+@if (_habit is null)
+{
+    @if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+    else { <div class="text-center py-5"><div class="spinner-border" role="status"></div></div> }
+}
+else
+{
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    <div class="card shadow-sm" style="max-width:40rem">
+        <div class="card-body vstack gap-3">
+            <div>
+                <label class="form-label" for="name">Name</label>
+                <input id="name" class="form-control" maxlength="80" placeholder="e.g. Drink water" @bind="_habit.Name" @bind:event="oninput" />
+            </div>
+            <div>
+                <label class="form-label" for="desc">Description (optional)</label>
+                <input id="desc" class="form-control" maxlength="300" @bind="_habit.Description" @bind:event="oninput" />
+            </div>
+            <div>
+                <label class="form-label">Icon</label>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var e in _emojis)
+                    {
+                        <button type="button" class="btn emoji-btn @(_habit.Emoji == e ? "btn-primary" : "btn-outline-secondary")"
+                                @onclick="() => _habit.Emoji = e">@e</button>
+                    }
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Color</label>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var c in _colors)
+                    {
+                        <button type="button" aria-label="Color @c" class="color-swatch @(_habit.Color == c ? "selected" : "")"
+                                style="background:@c" @onclick="() => _habit.Color = c"></button>
+                    }
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Repeat on</label>
+                <WeekdayPicker @bind-Value="_habit.ScheduledDays" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" disabled="@_saving" @onclick="Save">Save</button>
+                <a class="btn btn-outline-secondary" href="habits">Cancel</a>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly string[] _emojis = { "💧", "📚", "🏃", "🏋️", "🧘", "💻", "🥗", "😴", "✍️", "🎸", "🧹", "💊" };
+    private static readonly string[] _colors = { "#4f46e5", "#0ea5e9", "#22c55e", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#14b8a6" };
+
+    [Parameter] public int? Id { get; set; }
+
+    private Habit? _habit;
+    private string? _error;
+    private bool _saving;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            if (Id is null) { _habit = new Habit { Emoji = "💧", Color = "#4f46e5", ScheduledDays = Weekdays.Everyday }; return; }
+
+            var user = await User.GetAsync();
+            _habit = await Habits.GetForEditAsync(Id.Value, user.Id);
+            if (_habit is null) _error = "Habit not found.";
+        }
+        catch (Exception) { _error = "Could not load the habit."; }
+    }
+
+    private async Task Save()
+    {
+        _saving = true;
+        _error = null;
+        try
+        {
+            var user = await User.GetAsync();
+            await Habits.SaveAsync(_habit!, user.Id);
+            Nav.NavigateTo("habits");
+        }
+        catch (DomainException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Saving failed. Please try again."; }
+        _saving = false;
+    }
+}

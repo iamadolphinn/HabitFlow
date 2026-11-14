@@ -1,0 +1,107 @@
+@page "/habits/{Id:int}/stats"
+@attribute [Authorize]
+@implements IDisposable
+@inject IHabitService Habits
+@inject IHabitEvents Events
+@inject CurrentUser User
+
+<PageTitle>Habit stats</PageTitle>
+
+@if (_detail is null)
+{
+    @if (_error is not null) { <div class="alert alert-warning">@_error</div> }
+    else { <div class="text-center py-5"><div class="spinner-border" role="status"></div></div> }
+}
+else
+{
+    var h = _detail.Habit;
+    <div class="d-flex align-items-center gap-3 mb-3" style="--habit-color:@h.Color">
+        <div class="habit-icon">@h.Emoji</div>
+        <div>
+            <h2 class="mb-0">@h.Name</h2>
+            <a href="habits" class="small">← All habits</a>
+        </div>
+    </div>
+
+    @if (_error is not null) { <div class="alert alert-danger py-2">@_error</div> }
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3"><div class="card text-center"><div class="card-body"><div class="fs-3 fw-bold">🔥 @_detail.Streak.Current</div><div class="small text-muted">Current streak</div></div></div></div>
+        <div class="col-6 col-md-3"><div class="card text-center"><div class="card-body"><div class="fs-3 fw-bold">🏆 @_detail.Streak.Longest</div><div class="small text-muted">Longest streak</div></div></div></div>
+        <div class="col-6 col-md-3"><div class="card text-center"><div class="card-body"><div class="fs-3 fw-bold">@_detail.Streak.TotalCheckIns</div><div class="small text-muted">Total check-ins</div></div></div></div>
+        <div class="col-6 col-md-3"><div class="card text-center"><div class="card-body"><div class="fs-3 fw-bold">@_detail.Streak.Rate30Days%</div><div class="small text-muted">Last 30 days</div></div></div></div>
+    </div>
+
+    <h5>Last 12 weeks</h5>
+    <div class="card mb-4"><div class="card-body overflow-auto">
+        <Heatmap Cells="BuildCells(h)" Color="@h.Color" Clickable="true" OnCellClick="ToggleDay" />
+        <div class="form-text mt-2">Tap a square to add or remove a check-in (up to @HabitService.MaxBackfillDays days back).</div>
+    </div></div>
+
+    <h5>Badges</h5>
+    <BadgeList Badges="_detail.Badges" />
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private HabitDetail? _detail;
+    private string? _error;
+    private string _userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _userId = (await User.GetAsync()).Id;
+        Events.HabitsChanged += OnRemoteChange;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        try
+        {
+            _detail = await Habits.GetDetailAsync(Id, _userId);
+            if (_detail is null) _error = "Habit not found.";
+        }
+        catch (Exception) { _error = "Could not load the habit."; }
+    }
+
+    private IReadOnlyList<Heatmap.HeatCell> BuildCells(Habit h)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var done = h.CheckIns.Select(c => c.Date).ToHashSet();
+        var created = DateOnly.FromDateTime(h.CreatedAt);
+        var cells = new List<Heatmap.HeatCell>();
+
+        for (var i = HabitService.HeatmapDays - 1; i >= 0; i--)
+        {
+            var d = today.AddDays(-i);
+            var isDone = done.Contains(d);
+            var scheduled = h.IsScheduledOn(d);
+            var level = isDone ? 4 : 0;
+            var text = d.ToString("ddd d MMM") + (isDone ? " ✓ done" : scheduled && d >= created ? " – missed" : " – rest day");
+            cells.Add(new Heatmap.HeatCell(d, level, text));
+        }
+        return cells;
+    }
+
+    private async Task ToggleDay(DateOnly date)
+    {
+        _error = null;
+        try
+        {
+            await Habits.ToggleAsync(Id, _userId, date);
+            await Load();
+        }
+        catch (DomainException ex) { _error = ex.Message; }
+        catch (Exception) { _error = "Could not save the change."; }
+    }
+
+    private void OnRemoteChange(string userId)
+    {
+        if (userId != _userId) return;
+        _ = InvokeAsync(async () => { await Load(); StateHasChanged(); });
+    }
+
+    public void Dispose() => Events.HabitsChanged -= OnRemoteChange;
+}

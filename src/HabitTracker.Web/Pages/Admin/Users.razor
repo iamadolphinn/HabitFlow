@@ -1,0 +1,95 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = Roles.Admin)]
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using HabitTracker.Infrastructure
+@inject UserManager<ApplicationUser> UserManager
+@inject IHabitService Habits
+@inject CurrentUser Me
+
+<PageTitle>Users</PageTitle>
+<h2>Users</h2>
+
+@if (_message is not null)
+{
+    <div class="alert alert-@(_isError ? "danger" : "success") py-2">@_message</div>
+}
+
+@if (_rows is null)
+{
+    <div class="text-center py-5"><div class="spinner-border" role="status"></div></div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th>Name</th><th>Email</th><th>Habits</th><th>Role</th></tr></thead>
+            <tbody>
+            @foreach (var r in _rows)
+            {
+                <tr>
+                    <td>@r.User.DisplayName</td>
+                    <td>@r.User.Email</td>
+                    <td>@r.Habits</td>
+                    <td>
+                        <select class="form-select form-select-sm w-auto" value="@r.Role"
+                                @onchange="e => ChangeRole(r, e.Value?.ToString() ?? Roles.User)">
+                            @foreach (var role in Roles.All)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private record Row(ApplicationUser User, string Role, int Habits);
+
+    private List<Row>? _rows;
+    private string? _message;
+    private bool _isError;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        var users = await UserManager.Users.AsNoTracking().OrderBy(u => u.Email).ToListAsync();
+        var counts = await Habits.CountByUserAsync();
+        var rows = new List<Row>();
+        foreach (var u in users)
+        {
+            var roles = await UserManager.GetRolesAsync(u);
+            rows.Add(new Row(u, roles.FirstOrDefault() ?? Roles.User, counts.GetValueOrDefault(u.Id)));
+        }
+        _rows = rows;
+    }
+
+    private async Task ChangeRole(Row row, string newRole)
+    {
+        try
+        {
+            var me = await Me.GetAsync();
+            if (row.User.Id == me.Id) { Fail("You cannot change your own role."); await Load(); return; }
+            if (!Roles.All.Contains(newRole)) { Fail("Unknown role."); return; }
+
+            var user = await UserManager.FindByIdAsync(row.User.Id);
+            if (user is null) { Fail("User not found."); return; }
+
+            var current = await UserManager.GetRolesAsync(user);
+            await UserManager.RemoveFromRolesAsync(user, current);
+            await UserManager.AddToRoleAsync(user, newRole);
+
+            _message = $"{user.Email} is now {newRole}.";
+            _isError = false;
+            await Load();
+        }
+        catch (Exception) { Fail("Could not change the role."); }
+    }
+
+    private void Fail(string msg) { _message = msg; _isError = true; }
+}
